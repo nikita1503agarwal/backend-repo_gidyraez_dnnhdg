@@ -1,48 +1,68 @@
 """
-Database Schemas
+Database Schemas for Gift Card Trading App
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model corresponds to a MongoDB collection.
+Collection name is the lowercase of the class name.
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Collections:
+- User: basic user profile
+- Giftcard: supported gift card brands/types
+- Rate: buy/sell rates for gift cards
+- Trade: a submitted trade request by a user
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, Literal
+from datetime import datetime
 
-# Example schemas (replace with your own):
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
     name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    email: EmailStr = Field(..., description="Email address")
+    phone: Optional[str] = Field(None, description="Phone number")
+    is_verified: bool = Field(False, description="KYC/verification status")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Giftcard(BaseModel):
+    brand: str = Field(..., description="Brand name e.g. Amazon, iTunes, Steam")
+    country: Optional[str] = Field(None, description="Country/Region e.g. US, UK")
+    notes: Optional[str] = Field(None, description="Extra info users should know")
+    is_active: bool = Field(True, description="Whether this card type is tradable")
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class Rate(BaseModel):
+    brand: str = Field(..., description="Gift card brand this rate applies to")
+    country: Optional[str] = Field(None, description="Optional region/country")
+    currency: Literal["USD", "NGN", "GHS", "KES", "GBP", "EUR"] = Field(
+        "USD", description="Settlement currency"
+    )
+    buy: float = Field(..., gt=0, description="We buy at (per 1 unit of card currency)")
+    sell: Optional[float] = Field(None, gt=0, description="We sell at (optional)")
+    is_active: bool = Field(True)
+
+
+class Trade(BaseModel):
+    status: Literal["pending", "review", "approved", "rejected", "paid"] = Field(
+        "pending", description="Current status of the trade"
+    )
+    brand: str = Field(..., description="Gift card brand")
+    country: Optional[str] = Field(None, description="Region, if applicable")
+    card_currency: Literal["USD", "GBP", "EUR", "CAD", "AUD", "NGN", "GHS"] = Field(
+        ..., description="Gift card face value currency"
+    )
+    amount: float = Field(..., gt=0, description="Face value amount on the card")
+    code: Optional[str] = Field(None, description="Gift card code (if text-based)")
+    email: EmailStr = Field(..., description="User email to link the trade")
+    phone: Optional[str] = Field(None, description="User phone")
+    payout_currency: Literal["USD", "NGN", "GHS", "KES", "GBP", "EUR"] = Field(
+        "NGN", description="Payout currency"
+    )
+    payout_method: Literal["bank", "wallet", "mobile_money"] = Field(
+        "bank", description="How the user wants to be paid"
+    )
+    payout_details: Optional[str] = Field(
+        None, description="Account/wallet details to receive funds"
+    )
+    notes: Optional[str] = Field(None)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
